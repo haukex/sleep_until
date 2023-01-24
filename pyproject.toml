@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleep_until"
+version = "0.9"
+authors = [ { name="Hauke D", email="haukex@zero-g.net" } ]
+description = "Sleep until a specific time"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+    "Development Status :: 4 - Beta",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/haukex/sleep_until"
+"Bug Tracker" = "https://github.com/haukex/sleep_until/issues"
