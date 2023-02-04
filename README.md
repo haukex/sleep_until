@@ -10,20 +10,20 @@ delays execution until the specified time of the `CLOCK_REALTIME` clock.
 Here is how you might implement a loop that executes at a fixed interval:
 
 ```python
-from time import clock_gettime, CLOCK_REALTIME
-from sleep_until import sleep_until  # this module!
+from time import time
+from sleep_until import sleep_until
 
 interval_s = 1
 
 # using "int" here to start on a full second
-next_s = int(clock_gettime(CLOCK_REALTIME)) + interval_s
+next_s = int(time()) + interval_s
 while True:
     # calculate the next wakeup time and sleep until then
-    now_s = clock_gettime(CLOCK_REALTIME)
+    now_s = time()
     # if the user's code takes longer than the interval, skip intervals
     while next_s < now_s: next_s += interval_s
     sleep_until(next_s)
 
     # run any user-specified code here
-    print(clock_gettime(CLOCK_REALTIME))
+    print(time())
 ```
