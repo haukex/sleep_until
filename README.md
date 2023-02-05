@@ -8,6 +8,8 @@ a specific timestamp obtained from `datetime.datetime.timestamp()`.
 
 It is implemented using `clock_nanosleep(2)` on POSIX systems and
 `SetWaitableTimerEx` on Windows.
+At the time of writing, Mac OS X apparently does not have `clock_nanosleep`,
+so this module does not work there.
 
 See the notes in `time.sleep()` on the behavior when interrupted and on
 accuracy. Additionally, because this function uses the system clock as a
