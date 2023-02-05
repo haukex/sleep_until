@@ -2,6 +2,29 @@
 #include "Python.h"
 #include <time.h>
 
+#ifdef MS_WINDOWS
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+/* this code is heavily based on _PyTime_As100Nanoseconds from Python/pytime.c,
+ * which was added in Python 3.11 */
+static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
+    if (t >= 0) {
+        _PyTime_t q = t / 100;
+        if (t % 100)
+            q += 1;
+        return q;
+    }
+    else {
+        return t / 100;
+    }
+}
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+  #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+static DWORD timer_flags = (DWORD)-1;
+#endif /* MS_WINDOWS */
+
 /* this code is heavily based on:
  * https://github.com/haukex/cpython/blob/10bf4d61af77/Modules/timemodule.c */
 
@@ -29,7 +52,7 @@ static int _sleepuntil(_PyTime_t deadline) {
     return 0;
 
 #else  // MS_WINDOWS
-    _PyTime_t timeout_100ns = _PyTime_As100Nanoseconds(deadline, _PyTime_ROUND_CEILING);
+    _PyTime_t timeout_100ns = _pytime_to_100ns(deadline);
 
     // Maintain Windows Sleep() semantics for time.sleep(0)
     if (timeout_100ns == 0) {
@@ -50,8 +73,7 @@ static int _sleepuntil(_PyTime_t deadline) {
     // (the inverse of what is done in py_get_system_clock)
     due_time.QuadPart = timeout_100ns + 116444736000000000;
 
-    HANDLE timer = CreateWaitableTimerExW(NULL, NULL, timer_flags,
-                                          TIMER_ALL_ACCESS);
+    HANDLE timer = CreateWaitableTimerExW(NULL, NULL, timer_flags, TIMER_ALL_ACCESS);
     if (timer == NULL) {
         PyErr_SetFromWindowsErr(0);
         return -1;
@@ -158,5 +180,21 @@ static struct PyModuleDef sleep_until_module = {
 };
 
 PyMODINIT_FUNC PyInit_sleep_until(void) {
+#if defined(MS_WINDOWS)
+    if (timer_flags == (DWORD)-1) {
+        DWORD test_flags = CREATE_WAITABLE_TIMER_HIGH_RESOLUTION;
+        HANDLE timer = CreateWaitableTimerExW(NULL, NULL, test_flags,
+                                              TIMER_ALL_ACCESS);
+        if (timer == NULL) {
+            // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is not supported.
+            timer_flags = 0;
+        }
+        else {
+            // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is supported.
+            timer_flags = CREATE_WAITABLE_TIMER_HIGH_RESOLUTION;
+            CloseHandle(timer);
+        }
+    }
+#endif
     return PyModule_Create(&sleep_until_module);
 }
