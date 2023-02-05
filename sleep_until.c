@@ -2,17 +2,12 @@
 #include "Python.h"
 #include <time.h>
 
-/* this code is heavily based on CPython's Modules/timemodule.c */
-
-#ifdef MS_WINDOWS
-#error "This module does not work on Windows."
-#endif
-#ifndef HAVE_CLOCK_NANOSLEEP
-#error "This module requires clock_nanosleep."
-#endif
+/* this code is heavily based on:
+ * https://github.com/haukex/cpython/blob/10bf4d61af77/Modules/timemodule.c */
 
 static int _sleepuntil(_PyTime_t deadline) {
     assert(deadline >= 0);
+#ifndef MS_WINDOWS
     struct timespec timeout_abs;
     if (_PyTime_AsTimespec(deadline, &timeout_abs) < 0)
         return -1;
@@ -32,6 +27,106 @@ static int _sleepuntil(_PyTime_t deadline) {
             return -1;
     } while (1);
     return 0;
+
+#else  // MS_WINDOWS
+    _PyTime_t timeout_100ns = _PyTime_As100Nanoseconds(deadline, _PyTime_ROUND_CEILING);
+
+    // Maintain Windows Sleep() semantics for time.sleep(0)
+    if (timeout_100ns == 0) {
+        Py_BEGIN_ALLOW_THREADS
+        // A value of zero causes the thread to relinquish the remainder of its
+        // time slice to any other thread that is ready to run. If there are no
+        // other threads ready to run, the function returns immediately, and
+        // the thread continues execution.
+        Sleep(0);
+        Py_END_ALLOW_THREADS
+        return 0;
+    }
+
+    LARGE_INTEGER due_time;
+    // No need to check for integer overflow, both types are signed
+    assert(sizeof(due_time) == sizeof(timeout_100ns));
+    // Adjust from Unix epoch (1970-01-01) to Windows epoch (1601-01-01)
+    // (the inverse of what is done in py_get_system_clock)
+    due_time.QuadPart = timeout_100ns + 116444736000000000;
+
+    HANDLE timer = CreateWaitableTimerExW(NULL, NULL, timer_flags,
+                                          TIMER_ALL_ACCESS);
+    if (timer == NULL) {
+        PyErr_SetFromWindowsErr(0);
+        return -1;
+    }
+
+    if (!SetWaitableTimerEx(timer, &due_time,
+                            0, // no period; the timer is signaled once
+                            NULL, NULL, // no completion routine
+                            NULL,  // no wake context; do not resume from suspend
+                            0)) // no tolerable delay for timer coalescing
+    {
+        PyErr_SetFromWindowsErr(0);
+        goto error;
+    }
+
+    // Only the main thread can be interrupted by SIGINT.
+    // Signal handlers are only executed in the main thread.
+    if (_PyOS_IsMainThread()) {
+        HANDLE sigint_event = _PyOS_SigintEvent();
+
+        while (1) {
+            // Check for pending SIGINT signal before resetting the event
+            if (PyErr_CheckSignals()) {
+                goto error;
+            }
+            ResetEvent(sigint_event);
+
+            HANDLE events[] = {timer, sigint_event};
+            DWORD rc;
+
+            Py_BEGIN_ALLOW_THREADS
+            rc = WaitForMultipleObjects(Py_ARRAY_LENGTH(events), events,
+                                        // bWaitAll
+                                        FALSE,
+                                        // No wait timeout
+                                        INFINITE);
+            Py_END_ALLOW_THREADS
+
+            if (rc == WAIT_FAILED) {
+                PyErr_SetFromWindowsErr(0);
+                goto error;
+            }
+
+            if (rc == WAIT_OBJECT_0) {
+                // Timer signaled: we are done
+                break;
+            }
+
+            assert(rc == (WAIT_OBJECT_0 + 1));
+            // The sleep was interrupted by SIGINT: restart sleeping
+        }
+    }
+    else {
+        DWORD rc;
+
+        Py_BEGIN_ALLOW_THREADS
+        rc = WaitForSingleObject(timer, INFINITE);
+        Py_END_ALLOW_THREADS
+
+        if (rc == WAIT_FAILED) {
+            PyErr_SetFromWindowsErr(0);
+            goto error;
+        }
+
+        assert(rc == WAIT_OBJECT_0);
+        // Timer signaled: we are done
+    }
+
+    CloseHandle(timer);
+    return 0;
+
+error:
+    CloseHandle(timer);
+    return -1;
+#endif
 }
 
 static PyObject * sleep_until(PyObject *self, PyObject *deadline_obj) {
@@ -39,7 +134,7 @@ static PyObject * sleep_until(PyObject *self, PyObject *deadline_obj) {
     if (_PyTime_FromSecondsObject(&deadline, deadline_obj, _PyTime_ROUND_TIMEOUT))
         return NULL;
     if (deadline < 0) {
-        PyErr_SetString(PyExc_ValueError, "deadline must be non-negative");
+        PyErr_SetString(PyExc_ValueError, "sleep_until deadline must be non-negative");
         return NULL;
     }
     if (_sleepuntil(deadline) != 0) {
@@ -50,7 +145,7 @@ static PyObject * sleep_until(PyObject *self, PyObject *deadline_obj) {
 
 static PyMethodDef sleep_until_methods[] = {
     {"sleep_until",  sleep_until, METH_O,
-        "sleep_until(deadline_seconds)\n\nDelay execution until the specified time of the CLOCK_REALTIME clock."},
+        "sleep_until(deadline_seconds)\n\nDelay execution until the specified system clock time."},
     {NULL, NULL, 0, NULL}  /* sentinel */
 };
 

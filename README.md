@@ -1,13 +1,20 @@
 sleep\_until
 ============
 
-This module provides a function to sleep until a specific time
-using `clock_nanosleep(2)`. It (currently) does not work on Windows.
+This module provides a function `sleep_until(seconds)`, which is like
+`time.sleep()`, but it sleeps until the specified time of the system clock as
+returned by `time.time()`. This can be used, for example, to schedule events at
+a specific timestamp obtained from `datetime.datetime.timestamp()`.
 
-The `sleep_until()` function takes a seconds value as an argument and
-delays execution until the specified time of the `CLOCK_REALTIME` clock.
+It is implemented using `clock_nanosleep(2)` on POSIX systems and
+`SetWaitableTimerEx` on Windows.
 
-Here is how you might implement a loop that executes at a fixed interval:
+See the notes in `time.sleep()` on the behavior when interrupted and on
+accuracy. Additionally, because this function uses the system clock as a
+reference (`CLOCK_REALTIME` on Unix), this means the reference clock is
+adjustable and may jump backwards.
+
+Here is how one might implement a loop that executes at a fixed interval:
 
 ```python
 from time import time
