@@ -2,6 +2,25 @@
 #include "Python.h"
 #include <time.h>
 
+#ifdef MS_WINDOWS
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+/* this code is heavily based on _PyTime_As100Nanoseconds from Python/pytime.c */
+static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
+	if (t >= 0) {
+        _PyTime_t q = t / 100;
+        if (t % 100)
+            q += 1;
+        return q;
+	}
+	else {
+		return t / 100;
+	}
+}
+
+#endif /* MS_WINDOWS */
+
 /* this code is heavily based on:
  * https://github.com/haukex/cpython/blob/10bf4d61af77/Modules/timemodule.c */
 
@@ -29,7 +48,7 @@ static int _sleepuntil(_PyTime_t deadline) {
     return 0;
 
 #else  // MS_WINDOWS
-    _PyTime_t timeout_100ns = _PyTime_As100Nanoseconds(deadline, _PyTime_ROUND_CEILING);
+    _PyTime_t timeout_100ns = _pytime_to_100ns(deadline);
 
     // Maintain Windows Sleep() semantics for time.sleep(0)
     if (timeout_100ns == 0) {
