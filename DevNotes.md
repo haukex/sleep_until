@@ -6,12 +6,20 @@ References:
 - <https://setuptools.pypa.io/en/latest/userguide/ext_modules.html>
 - <https://packaging.python.org/en/latest/guides/using-testpypi/#using-testpypi-with-pip>
 
+TODO: https://github.com/adelplanque/autotools-extension
+
+Configure:
+
+    autoheader  # generates config.h.in
+    autoconf    # generates configure
+
 Initial setup:
 
     pip3 install --upgrade build twine
 
 Building:
 
+    ./configure
     python3 -m build
 
 Uploading to test repo:

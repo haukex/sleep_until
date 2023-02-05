@@ -1,5 +1,6 @@
 /* sleep_until module */
 #include "Python.h"
+#include "config.h"
 #include <time.h>
 
 /* this code is heavily based on CPython's Modules/timemodule.c */
