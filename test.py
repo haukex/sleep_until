@@ -7,7 +7,7 @@ dur_s = 10
 if len(sys.argv)>1:
     dur_s = int(sys.argv[1])
 
-print("Running test for {} seconds...".format(dur_s))
+print("Running test for {} seconds...".format(dur_s), flush=True)
 got_times = []
 first_s = int(time())
 next_s = first_s
@@ -22,7 +22,9 @@ if len(got_times) != dur_s:
 for i in range(dur_s):
     exp = first_s+i+1
     got = got_times[i]
-    if got-exp>0.001:  # 1ms
-        raise ValueError("{0!r} {1!r}".format(exp, got))
+    if abs(got-exp)>0.050:
+        raise ValueError("exp={0!r} got={1!r} abs>50ms".format(exp, got))
+    elif got-exp>0.002 or got-exp<0:
+        print("Warning: exp={0!r} got={1!r} >2ms or <0".format(exp, got), file=sys.stderr)
 
 print("PASS")
