@@ -13,6 +13,7 @@ adjustable and may jump backwards.
 
 * On Windows, `SetWaitableTimerEx` is used, in combination with
   `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` if available.
+  Precompiled "wheels" for CPython are available on PyPI.
 * On POSIX systems, `clock_nanosleep(2)` is used, so this must be available,
   along with the appropriate tools to compile the module.
 * On Mac OS X, at the time of writing, `clock_nanosleep` is not available,

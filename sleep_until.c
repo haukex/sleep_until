@@ -9,15 +9,15 @@
 /* this code is heavily based on _PyTime_As100Nanoseconds from Python/pytime.c,
  * which was added in Python 3.11 */
 static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
-	if (t >= 0) {
+    if (t >= 0) {
         _PyTime_t q = t / 100;
         if (t % 100)
             q += 1;
         return q;
-	}
-	else {
-		return t / 100;
-	}
+    }
+    else {
+        return t / 100;
+    }
 }
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
   #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
