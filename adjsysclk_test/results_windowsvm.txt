@@ -1,0 +1,16 @@
+Windows 10 Pro 22H2 19045.2486 Feature Experience Pack 120.2212.4190.0
+(this VM was under heavy load, which probably accounts for the jitter in some of the timestamps below)
+Starting threads...
+ 0.000s Settime Thread started, sleeping 30s until adjustment
+ 0.000s Sleep Thread started at 2023-04-09T19:53:20.274309+00:00, now sleep_until for 0:01:00 to 2023-04-09T19:54:20.274309+00:00
+30.016s Settime Thread adjusting time from 2023-04-09T19:53:45.188019+00:00 by -0:00:30 to 2023-04-09T19:53:15.188019+00:00
+30.016s Settime Thread time adjusted, is now 2023-04-09T19:53:15.188000+00:00
+90.000s Sleep Thread woke at 2023-04-09T19:54:31.057276+00:00
+Threads joined.
+Starting threads...
+ 0.000s Settime Thread started, sleeping 30s until adjustment
+ 0.000s Sleep Thread started at 2023-04-09T19:54:31.057276+00:00, now sleep_until for 0:01:00 to 2023-04-09T19:55:31.057276+00:00
+30.032s Settime Thread adjusting time from 2023-04-09T19:55:16.091157+00:00 by 0:00:30 to 2023-04-09T19:55:46.091157+00:00
+30.047s Settime Thread time adjusted, is now 2023-04-09T19:55:46.091424+00:00
+30.047s Sleep Thread woke at 2023-04-09T19:55:46.091424+00:00
+Threads joined.
