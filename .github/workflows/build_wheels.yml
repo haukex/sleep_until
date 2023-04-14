@@ -1,8 +1,7 @@
-name: Build
-on: [push]
+name: Build Wheels for Windows
+on: push
 jobs:
   build_wheels:
-    name: Build wheels on Windows
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v3
