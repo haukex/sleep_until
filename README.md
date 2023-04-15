@@ -11,11 +11,13 @@ accuracy. Additionally, because this function uses the system clock as a
 reference (`CLOCK_REALTIME` on Unix), this means the reference clock is
 adjustable and may jump backwards.
 
-* On Windows, `SetWaitableTimerEx` is used, in combination with
-  `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` if available.
-  Precompiled "wheels" for CPython are available on PyPI.
 * On POSIX systems, `clock_nanosleep(2)` is used, so this must be available,
   along with the appropriate tools to compile the module.
+* On Windows, `SetWaitableTimerEx` is used, in combination with
+  `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION` if available.
+  Precompiled "wheels" for CPython are available on PyPI
+  (wheels for other OSes are not provided because it is not
+  guaranteed that `clock_nanosleep(2)` is available there).
 * On Mac OS X, at the time of writing, `clock_nanosleep` is not available,
   so the module currently does not build there.
 
