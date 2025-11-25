@@ -1,0 +1,3 @@
+
+def sleep_until(deadline_seconds: float, /) -> None:  # pylint: disable=unused-argument  # pragma: no cover
+    ...

@@ -1,4 +1,10 @@
-/.idea/
+/.devcontainer/.devpod-internal/
+.venv*/
+__pycache__/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
 /dist/
 /*.egg-info/
-/adjsysclk_test/
+/adj_sys_clk_test/
