@@ -2,6 +2,12 @@
 #include "Python.h"
 #include <time.h>
 
+#if PY_VERSION_HEX >= 0x030D0000
+#define Py_BUILD_CORE
+#include <internal/pycore_time.h>
+#define _PyTime_t PyTime_t
+#endif
+
 #ifdef MS_WINDOWS
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -20,7 +26,7 @@ static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
     }
 }
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
-  #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+    #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
 #endif
 static DWORD timer_flags = (DWORD)-1;
 #endif /* MS_WINDOWS */
@@ -184,7 +190,7 @@ PyMODINIT_FUNC PyInit_sleep_until(void) {
     if (timer_flags == (DWORD)-1) {
         DWORD test_flags = CREATE_WAITABLE_TIMER_HIGH_RESOLUTION;
         HANDLE timer = CreateWaitableTimerExW(NULL, NULL, test_flags,
-                                              TIMER_ALL_ACCESS);
+                                                TIMER_ALL_ACCESS);
         if (timer == NULL) {
             // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is not supported.
             timer_flags = 0;

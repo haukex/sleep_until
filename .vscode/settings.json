@@ -30,5 +30,8 @@
         "nanosleep",
         "waitable"
     ],
+    "files.associations": {
+        "pycore_time.h": "c"
+    },
 }
 /* vim: set filetype=javascript ts=4 sw=4 expandtab : */

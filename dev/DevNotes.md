@@ -9,7 +9,8 @@ References:
 
 Initial setup:
 
-    make installdeps
+    for v in $(seq 10 14); do test -d .venv3.$v || python3.$v -m venv .venv3.$v; done
+    for v in $(seq 10 14); do make installdeps PYTHON3BIN=.venv3.$v/bin/python; done
 
 Building (Linux):
 
@@ -17,7 +18,7 @@ Building (Linux):
 
 Local Test:
 
-    dev/isolated-dist-test.sh dist/sleep_until-*.tar.gz
+    for v in $(seq 10 14); do dev/build-test.sh .venv3.$v/bin/python; done
 
 Clean:
 
