@@ -1,7 +1,16 @@
-/* sleep_until module */
+/** ***** ***** ***** Python Module sleep_until ***** ***** *****
+ *
+ * This file was derived from the Python source code as follows:
+ * https://github.com/python/cpython/tree/3.14 [as of November 2025]
+ * https://github.com/python/cpython/blob/9969c4280f/Python/pytime.c
+ * https://github.com/python/cpython/blob/9969c4280f/Modules/timemodule.c
+ * https://github.com/python/cpython/blob/9969c4280f/Include/internal/pycore_time.h
+ */
 #include "Python.h"
 #include <time.h>
 
+/* As of 3.13, several of the internal functions used here moved to the following internal header file,
+ * while `PyTime_t` was made public. https://docs.python.org/3.13/whatsnew/3.13.html#c-api-changes */
 #if PY_VERSION_HEX >= 0x030D0000
 #define Py_BUILD_CORE
 #include <internal/pycore_time.h>
@@ -12,8 +21,12 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-/* this code is heavily based on _PyTime_As100Nanoseconds from Python/pytime.c,
- * which was added in Python 3.11 */
+/* `_PyTime_As100Nanoseconds` wasn't added until Python 3.11. It is only called in one place from `timemodule.c`,
+ * in the `MS_WINDOWS` part of `pysleep`, where it is called with `round=_PyTime_ROUND_CEILING`, and looking at
+ * `_PyTime_As100Nanoseconds` in `pytime.c`, that's just a call to `pytime_divide` with `k=NS_TO_100NS=100`,
+ * which is simply `if (t >= 0) return pytime_divide_round_up(t, k); else return t / k;`. And looking at
+ * `pytime_divide_round_up` (also in `pytime.c`), that's just `PyTime_t q = t / k; if (t % k) q += 1; return q;`,
+ * therefore we arrive at the following function. */
 static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
     if (t >= 0) {
         _PyTime_t q = t / 100;
@@ -25,19 +38,26 @@ static _PyTime_t _pytime_to_100ns(const _PyTime_t t) {
         return t / 100;
     }
 }
+
+/* From `timemodule.c` (used below) */
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
-    #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
 #endif
 static DWORD timer_flags = (DWORD)-1;
+
 #endif /* MS_WINDOWS */
 
-/* this code is heavily based on:
- * https://github.com/haukex/cpython/blob/10bf4d61af77/Modules/timemodule.c */
-
+/* This code is derived from `pysleep` in `timemodule.c`. */
 static int _sleepuntil(_PyTime_t deadline) {
     assert(deadline >= 0);
 #ifndef MS_WINDOWS
+    /* Note we assume that HAVE_CLOCK_NANOSLEEP is defined. */
     struct timespec timeout_abs;
+    /* `pysleep` calculates `deadline` here by adding the `timeout` argument
+     * to `PyTime_Monotonic`, but in `sleep_until`, the user is specifying
+     * the `deadline` directly. The rest of this code is actually identical
+     * to the non-`MS_WINDOWS` `pysleep` *except* that here, we specify
+     * `CLOCK_REALTIME` instead of `CLOCK_MONOTONIC`. */
     if (_PyTime_AsTimespec(deadline, &timeout_abs) < 0)
         return -1;
     do {
@@ -58,8 +78,10 @@ static int _sleepuntil(_PyTime_t deadline) {
     return 0;
 
 #else  // MS_WINDOWS
+    /* Use the `_pytime_to_100ns` from above instead of `_PyTime_As100Nanoseconds`. */
     _PyTime_t timeout_100ns = _pytime_to_100ns(deadline);
 
+    /* This bit is identical to the original `pysleep` (// comments are from the original) */
     // Maintain Windows Sleep() semantics for time.sleep(0)
     if (timeout_100ns == 0) {
         Py_BEGIN_ALLOW_THREADS
@@ -72,13 +94,20 @@ static int _sleepuntil(_PyTime_t deadline) {
         return 0;
     }
 
+    /* This part is a bit interesting: I've renamed the original `relative_timeout` to `due_time`, and also, as per
+     * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setwaitabletimerex#parameters
+     * it needs to be positive to specify an absolute time. Finally, we need to convert from
+     * the Unix epoch (1970-01-01) to Windows epoch (1601-01-01); this is the inverse of what
+     * is done in `py_get_system_clock` in `pytime.c`, which is where we get the value below from:
+     * "11,644,473,600,000,000,000: number of nanoseconds between
+     * the 1st january 1601 and the 1st january 1970 (369 years + 89 leap days)." */
     LARGE_INTEGER due_time;
     // No need to check for integer overflow, both types are signed
     assert(sizeof(due_time) == sizeof(timeout_100ns));
-    // Adjust from Unix epoch (1970-01-01) to Windows epoch (1601-01-01)
-    // (the inverse of what is done in py_get_system_clock)
+    // SetWaitableTimer(): Positive values indicate absolute time.
     due_time.QuadPart = timeout_100ns + 116444736000000000;
 
+    /* The rest of this code is identical to the corresponding part of `pysleep`. */
     HANDLE timer = CreateWaitableTimerExW(NULL, NULL, timer_flags, TIMER_ALL_ACCESS);
     if (timer == NULL) {
         PyErr_SetFromWindowsErr(0);
@@ -157,6 +186,8 @@ error:
 #endif
 }
 
+/* This function is mostly lifted from `time_sleep` in `timemodule.c`,
+ * except I don't do the `PySys_Audit` call, which was added in 3.13. */
 static PyObject * sleep_until(PyObject *self, PyObject *deadline_obj) {
     _PyTime_t deadline;
     if (_PyTime_FromSecondsObject(&deadline, deadline_obj, _PyTime_ROUND_TIMEOUT))
@@ -171,21 +202,8 @@ static PyObject * sleep_until(PyObject *self, PyObject *deadline_obj) {
     Py_RETURN_NONE;
 }
 
-static PyMethodDef sleep_until_methods[] = {
-    {"sleep_until",  sleep_until, METH_O,
-        "sleep_until(deadline_seconds)\n\nDelay execution until the specified system clock time."},
-    {NULL, NULL, 0, NULL}  /* sentinel */
-};
-
-static struct PyModuleDef sleep_until_module = {
-    PyModuleDef_HEAD_INIT,
-    "sleep_until", /* name */
-    "This module provides a function to sleep until a specific time.", /* documentation */
-    -1, /* -1 = module keeps state in global variables */
-    sleep_until_methods
-};
-
-PyMODINIT_FUNC PyInit_sleep_until(void) {
+/* This bit is lifted from `time_exec` in `timemodule.c`. */
+static int sleep_until_exec(PyObject *module) {
 #if defined(MS_WINDOWS)
     if (timer_flags == (DWORD)-1) {
         DWORD test_flags = CREATE_WAITABLE_TIMER_HIGH_RESOLUTION;
@@ -202,5 +220,37 @@ PyMODINIT_FUNC PyInit_sleep_until(void) {
         }
     }
 #endif
-    return PyModule_Create(&sleep_until_module);
+    return 0;
+}
+
+/* The following are based on `time_methods`, `time_slots`, `timemodule`, and `PyInit_time` in `timemodule.c`. */
+
+static PyMethodDef sleep_until_methods[] = {
+    {"sleep_until",  sleep_until, METH_O,
+        "sleep_until(deadline_seconds)\n\nDelay execution until the specified system clock time."},
+    {NULL, NULL, 0, NULL}  /* sentinel */
+};
+
+static struct PyModuleDef_Slot sleep_until_slots[] = {
+    {Py_mod_exec, sleep_until_exec},
+#if PY_VERSION_HEX >= 0x030C0000
+    {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
+#endif
+#if PY_VERSION_HEX >= 0x030D0000
+    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
+#endif
+    {0, NULL}
+};
+
+static struct PyModuleDef sleep_until_module = {
+    PyModuleDef_HEAD_INIT,
+    .m_name = "sleep_until",
+    .m_doc = "This module provides a function to sleep until a specific time.",
+    .m_size = 0,
+    .m_methods = sleep_until_methods,
+    .m_slots = sleep_until_slots,
+};
+
+PyMODINIT_FUNC PyInit_sleep_until(void) {
+    return PyModuleDef_Init(&sleep_until_module);
 }

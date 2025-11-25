@@ -31,7 +31,8 @@
         "waitable"
     ],
     "files.associations": {
-        "pycore_time.h": "c"
+        "pycore_time.h": "c",
+        "cstdlib": "c"
     },
 }
 /* vim: set filetype=javascript ts=4 sw=4 expandtab : */
