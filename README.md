@@ -18,10 +18,8 @@ adjustable and may jump backwards.
   Precompiled "wheels" for CPython are available on PyPI
   (wheels for other OSes are not provided because it is not
   guaranteed that `clock_nanosleep(2)` is available there).
-* On Mac OS X, at the time of writing, `clock_nanosleep` is not available,
+* On Mac OS X, at the time of writing, `clock_nanosleep` is still not available,
   so the module currently does not build there.
-
-The `test.py` script can be used to test the functionality of the module.
 
 Here is how one might implement a loop that executes at a fixed interval:
 
@@ -37,7 +35,8 @@ while True:
     # calculate the next wake-up time and sleep until then
     now_s = time()
     # if the user's code takes longer than the interval, skip intervals
-    while next_s < now_s: next_s += interval_s
+    while next_s < now_s:
+        next_s += interval_s
     sleep_until(next_s)
 
     # run any user-specified code here

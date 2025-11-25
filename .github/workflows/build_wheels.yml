@@ -1,16 +1,25 @@
 name: Build Wheels for Windows
-on: push
+on:
+  push:
+    # only on commits, not on tags
+    branches:
+      - '**'
+  workflow_dispatch:
+# https://cibuildwheel.pypa.io/en/stable/setup/#github-actions
 jobs:
   build_wheels:
-    runs-on: windows-latest
+    runs-on: Windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+        uses: pypa/cibuildwheel@v3.3.0
         env:
-          CIBW_SKIP: pp*
-          CIBW_BUILD_FRONTEND: "build"
-          CIBW_TEST_COMMAND: python {package}/test.py
-      - uses: actions/upload-artifact@v3
+          # https://cibuildwheel.pypa.io/en/stable/options/#build-skip
+          # Python 3.10+, not on free-threading builds, Windows only
+          CIBW_BUILD: cp3??-win*
+          # https://cibuildwheel.pypa.io/en/stable/options/#test-command
+          CIBW_TEST_COMMAND: python -X dev -X warn_default_encoding -W error -m unittest discover -vs {package}
+      - uses: actions/upload-artifact@v5
         with:
+          name: cibw-wheels-win-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
